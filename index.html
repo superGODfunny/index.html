@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英単語確認テスト (Chapter 11-13)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            user-select: none;
+        }
+
+        .btn-option {
+            transition: all 0.2s;
+        }
+        .btn-option:active {
+            transform: scale(0.98);
+        }
+        
+        .correct-anim {
+            animation: flashGreen 0.5s;
+        }
+        .wrong-anim {
+            animation: shake 0.4s;
+        }
+
+        @keyframes flashGreen {
+            0% { background-color: #10b981; color: white; }
+            100% { background-color: white; color: #1f2937; }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Progress Bar Transition */
+        #progress-bar {
+            transition: width 0.3s ease-out;
+        }
+
+        /* Modal Background */
+        .modal-bg {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Custom Scrollbar for mistake list */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c7c7c7;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Card Container -->
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden flex flex-col h-[650px] max-h-[90vh] relative">
+        
+        <!-- Header -->
+        <div class="bg-indigo-600 p-4 text-white text-center shrink-0 relative">
+            <h1 class="text-xl font-bold">英単語確認テスト</h1>
+            <p class="text-indigo-200 text-sm">Chapter 11 - 13</p>
+            <div class="absolute top-4 right-4">
+                <span id="score-display" class="font-bold text-lg bg-indigo-700 px-3 py-1 rounded-full">0</span>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full bg-gray-200 h-2 shrink-0">
+            <div id="progress-bar" class="bg-green-500 h-2 w-0"></div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col p-6 overflow-hidden relative">
+            
+            <!-- Setup / Menu Screen -->
+            <div id="menu-screen" class="flex flex-col h-full justify-center space-y-4 overflow-y-auto">
+                <div class="text-center mb-6">
+                    <p class="text-gray-600 mb-2">出題モードを選択してください</p>
+                    <p class="text-xs text-gray-400">全180問収録</p>
+                </div>
+                
+                <button onclick="startGame('textbook')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 rounded-lg shadow transition transform hover:-translate-y-1">
+                    教科書順 (Chapter順)
+                </button>
+                <button onclick="startGame('random')" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 rounded-lg shadow transition transform hover:-translate-y-1">
+                    ランダム出題
+                </button>
+            </div>
+
+            <!-- Quiz Screen -->
+            <div id="quiz-screen" class="hidden flex flex-col h-full overflow-y-auto">
+                <div class="flex justify-between items-end mb-4 border-b pb-2 shrink-0">
+                    <span id="question-counter" class="text-sm text-gray-500 font-mono">Q. 1 / 180</span>
+                    <span id="mode-badge" class="text-xs px-2 py-1 bg-gray-100 rounded text-gray-500">Mode</span>
+                </div>
+
+                <div class="flex-1 flex flex-col justify-center items-center mb-6 shrink-0">
+                    <p class="text-sm text-gray-400 mb-1">意味</p>
+                    <h2 id="question-text" class="text-3xl font-bold text-center text-gray-800 break-words w-full px-2">
+                        --
+                    </h2>
+                </div>
+
+                <div id="options-container" class="grid grid-cols-1 gap-3 pb-4">
+                    <!-- Options will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Result Screen -->
+            <div id="result-screen" class="hidden flex flex-col h-full overflow-hidden">
+                <!-- Top Result Info -->
+                <div class="shrink-0 text-center mb-4">
+                    <h2 id="result-title" class="text-2xl font-bold text-gray-800 mb-1">完了!</h2>
+                    <p id="result-msg" class="text-sm text-gray-500 mb-4">お疲れ様でした。</p>
+                    
+                    <div class="bg-gray-100 p-4 rounded-lg flex justify-around items-center">
+                        <div>
+                            <p class="text-xs text-gray-500">正解数</p>
+                            <p class="text-2xl font-bold text-indigo-600">
+                                <span id="final-score">0</span> <span class="text-lg text-gray-400">/ <span id="total-questions">0</span></span>
+                            </p>
+                        </div>
+                        <div id="wrong-count-container" class="hidden">
+                            <p class="text-xs text-gray-500">ミス</p>
+                            <p class="text-2xl font-bold text-red-500">
+                                <span id="wrong-count">0</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mistake List Area -->
+                <div id="mistake-container" class="hidden flex-1 flex flex-col overflow-hidden mb-4 bg-red-50 rounded-lg border border-red-100">
+                    <div class="p-2 bg-red-100 text-red-700 text-xs font-bold text-center shrink-0">
+                        間違えた問題一覧
+                    </div>
+                    <ul id="mistake-list" class="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                        <!-- Mistakes inserted here -->
+                    </ul>
+                </div>
+
+                <!-- Actions -->
+                <div class="shrink-0 flex flex-col space-y-2 pt-2">
+                    <button id="retry-btn" onclick="startRetry()" class="hidden w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow animate-pulse">
+                        間違えた問題を解き直す
+                    </button>
+
+                    <button onclick="checkReset()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-lg shadow">
+                        タイトルに戻る
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer / Controls -->
+        <div class="bg-gray-50 p-4 border-t shrink-0 flex justify-between items-center">
+            <button onclick="checkReset()" class="text-gray-400 hover:text-gray-600 text-sm font-medium px-3 py-2 rounded hover:bg-gray-100">
+                ↺ 最初からやり直す
+            </button>
+            <div id="feedback-msg" class="text-sm font-bold h-5"></div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirm-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center modal-bg px-4">
+            <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm text-center transform transition-all scale-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-2">確認</h3>
+                <p class="text-gray-600 mb-6">現在の進行状況は失われます。<br>最初からやり直しますか？</p>
+                <div class="flex space-x-3 justify-center">
+                    <button onclick="closeModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">
+                        いいえ
+                    </button>
+                    <button onclick="confirmReset()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
+                        はい
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Data Source ---
+        const wordData = [
+            // Chapter 11-1
+            { ja: "印刷する", en: "print" }, { ja: "想像する", en: "imagine" }, { ja: "想像", en: "imagination" }, { ja: "像", en: "image" }, { ja: "落とす", en: "drop" },
+            { ja: "慣習", en: "custom" }, { ja: "の間の", en: "among" }, { ja: "可能な", en: "able" }, { ja: "能力", en: "ability" }, { ja: "できない", en: "unable" },
+            { ja: "チョコレート", en: "chocolate" }, { ja: "賢い", en: "wise" }, { ja: "知恵", en: "wisdom" }, { ja: "裁判官", en: "judge" }, { ja: "裁判", en: "judgment" },
+            { ja: "形", en: "shape" }, { ja: "法廷", en: "court" }, { ja: "塔", en: "tower" }, { ja: "王", en: "king" }, { ja: "女王", en: "queen" },
+            { ja: "闘争", en: "conflict" }, { ja: "方法", en: "method" }, { ja: "創造する", en: "create" }, { ja: "創造力のある", en: "creative" }, { ja: "独創性", en: "creativity" },
+            { ja: "幸運", en: "fortune" }, { ja: "細菌", en: "germ" }, { ja: "主導権", en: "initiative" }, { ja: "知性", en: "intellect" }, { ja: "反逆者", en: "rebel" },
+
+            // Chapter 11-2
+            { ja: "単に", en: "merely" }, { ja: "まったく", en: "quite" }, { ja: "一人で", en: "alone" }, { ja: "脱出", en: "escape" }, { ja: "避ける", en: "avoid" },
+            { ja: "冗談", en: "joke" }, { ja: "妻", en: "wife" }, { ja: "足", en: "foot" }, { ja: "泣く", en: "cry" }, { ja: "親愛な", en: "dear" },
+            { ja: "進路", en: "course" }, { ja: "小さい", en: "little" }, { ja: "少数の", en: "few" }, { ja: "バター", en: "butter" }, { ja: "絹", en: "silk" },
+            { ja: "症例", en: "case" }, { ja: "ひも", en: "cord" }, { ja: "縄", en: "rope" }, { ja: "夫", en: "husband" }, { ja: "上に", en: "above" },
+            { ja: "役に立つ", en: "helpful" }, { ja: "防衛", en: "defense" }, { ja: "守る", en: "defend" }, { ja: "薬", en: "medicine" }, { ja: "医学の", en: "medical" },
+            { ja: "攻撃", en: "attack" }, { ja: "影響", en: "influence" }, { ja: "刺激", en: "stimulus" }, { ja: "知能", en: "intelligence" }, { ja: "誇り", en: "pride" },
+
+            // Chapter 12-1
+            { ja: "しかしながら", en: "however" }, { ja: "の周りに", en: "around" }, { ja: "壁", en: "wall" }, { ja: "大好きで", en: "fond" }, { ja: "臭いをかぐ", en: "smell" },
+            { ja: "〜だけ", en: "only" }, { ja: "心配な", en: "anxious" }, { ja: "心配して", en: "anxiously" }, { ja: "取り除く", en: "remove" }, { ja: "引く", en: "pull" },
+            { ja: "歴史", en: "history" }, { ja: "を通り抜けて", en: "through" }, { ja: "喜ばせる", en: "please" }, { ja: "運ぶ", en: "carry" }, { ja: "そのような", en: "such" },
+            { ja: "いつも", en: "always" }, { ja: "仕事", en: "task" }, { ja: "義務", en: "duty" }, { ja: "凧", en: "kite" }, { ja: "韓国の", en: "Korean" },
+            { ja: "減らす", en: "reduce" }, { ja: "減少", en: "reduction" }, { ja: "増加", en: "increase" }, { ja: "解決", en: "solution" }, { ja: "解く", en: "solve" },
+            { ja: "廃止する", en: "abolish" }, { ja: "強要する", en: "compel" }, { ja: "解散させる", en: "dismiss" }, { ja: "忠誠", en: "loyalty" }, { ja: "配置する", en: "dispose" },
+
+            // Chapter 12-2
+            { ja: "伝説", en: "legend" }, { ja: "戦争", en: "war" }, { ja: "一般的な", en: "general" }, { ja: "一般的に", en: "generally" }, { ja: "軍隊", en: "army" },
+            { ja: "たぶん", en: "probably" }, { ja: "軍人", en: "soldier" }, { ja: "標識", en: "sign" }, { ja: "象徴", en: "symbol" }, { ja: "記号", en: "mark" },
+            { ja: "〜なしに", en: "without" }, { ja: "幸運", en: "luck" }, { ja: "幸運な", en: "lucky" }, { ja: "天国", en: "heaven" }, { ja: "伝統", en: "tradition" },
+            { ja: "名付ける", en: "name" }, { ja: "目的", en: "purpose" }, { ja: "橋", en: "bridge" }, { ja: "音楽の", en: "musical" }, { ja: "敵", en: "enemy" },
+            { ja: "干渉する", en: "interfere" }, { ja: "組織", en: "system" }, { ja: "組織的な", en: "systematic" }, { ja: "みなす", en: "regard" }, { ja: "尊敬する", en: "respect" },
+            { ja: "支配する", en: "dominate" }, { ja: "課する", en: "impose" }, { ja: "調査する", en: "investigate" }, { ja: "必要とする", en: "require" }, { ja: "訴える", en: "resort" },
+
+            // Chapter 13-1
+            { ja: "恐らく(p)", en: "perhaps" }, { ja: "と思われる", en: "seem" }, { ja: "警告", en: "warning" }, { ja: "警告する", en: "warn" }, { ja: "天使", en: "angel" },
+            { ja: "物語", en: "story" }, { ja: "楽しみ", en: "fun" }, { ja: "面白い", en: "funny" }, { ja: "思い出す", en: "remember" }, { ja: "思い出させる", en: "remind" },
+            { ja: "新聞", en: "newspaper" }, { ja: "忘れる", en: "forget" }, { ja: "出来事", en: "event" }, { ja: "証明する", en: "prove" }, { ja: "証拠", en: "evidence" },
+            { ja: "教授", en: "professor" }, { ja: "電気", en: "electricity" }, { ja: "電気の", en: "electric" }, { ja: "続ける", en: "continue" }, { ja: "続く", en: "last" },
+            { ja: "定住する", en: "settle" }, { ja: "空気", en: "air" }, { ja: "灰色", en: "gray" }, { ja: "コート", en: "coat" }, { ja: "上塗り", en: "coating" },
+            { ja: "強い", en: "solid" }, { ja: "ささいな", en: "trivial" }, { ja: "不器用な", en: "awkward" }, { ja: "無限の", en: "infinite" }, { ja: "適した", en: "suitable" },
+
+            // Chapter 13-2
+            { ja: "恐らく(m)", en: "maybe" }, { ja: "レストラン", en: "restaurant" }, { ja: "命令する", en: "order" }, { ja: "ウェイター", en: "waiter" }, { ja: "食卓", en: "table" },
+            { ja: "試みる", en: "try" }, { ja: "ナイフ", en: "knife" }, { ja: "じっと見る", en: "stare" }, { ja: "置く", en: "set" }, { ja: "前部", en: "front" },
+            { ja: "科学者", en: "scientist" }, { ja: "持ち主", en: "owner" }, { ja: "自分自身の", en: "own" }, { ja: "のそばに", en: "beside" }, { ja: "ガラス", en: "glass" },
+            { ja: "驚くべき", en: "surprising" }, { ja: "草", en: "grass" }, { ja: "見守る", en: "watch" }, { ja: "妙な", en: "strange" }, { ja: "見知らぬ人", en: "stranger" },
+            { ja: "立派な", en: "fine" }, { ja: "穀物", en: "grain" }, { ja: "輝く", en: "shine" }, { ja: "反射する", en: "reflect" }, { ja: "反射", en: "reflection" },
+            { ja: "破る", en: "violate" }, { ja: "重荷", en: "burden" }, { ja: "崩壊", en: "collapse" }, { ja: "敗北", en: "defeat" }, { ja: "欠点", en: "fault" }
+        ];
+
+        // --- Game State ---
+        let currentQueue = [];
+        let wrongQuestions = []; // Stores questions answered incorrectly
+        let currentIndex = 0;
+        let score = 0;
+        let isAcceptingInput = false;
+
+        // --- DOM Elements ---
+        const menuScreen = document.getElementById('menu-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const scoreDisplay = document.getElementById('score-display');
+        const counterDisplay = document.getElementById('question-counter');
+        const progressBar = document.getElementById('progress-bar');
+        const feedbackMsg = document.getElementById('feedback-msg');
+        const modeBadge = document.getElementById('mode-badge');
+        
+        const confirmModal = document.getElementById('confirm-modal');
+        const retryBtn = document.getElementById('retry-btn');
+        const wrongCountContainer = document.getElementById('wrong-count-container');
+        const wrongCountSpan = document.getElementById('wrong-count');
+        const resultTitle = document.getElementById('result-title');
+        const resultMsg = document.getElementById('result-msg');
+        const mistakeContainer = document.getElementById('mistake-container');
+        const mistakeList = document.getElementById('mistake-list');
+
+        // --- Logic ---
+
+        function startGame(mode) {
+            score = 0;
+            currentIndex = 0;
+            scoreDisplay.textContent = score;
+            
+            // Mode setup
+            if (mode === 'random') {
+                wrongQuestions = []; // Reset wrong answers for new game
+                currentQueue = shuffleArray([...wordData]);
+                modeBadge.textContent = "ランダム";
+                modeBadge.className = "text-xs px-2 py-1 bg-purple-100 text-purple-600 rounded";
+            } else if (mode === 'textbook') {
+                wrongQuestions = []; // Reset wrong answers for new game
+                currentQueue = [...wordData];
+                modeBadge.textContent = "教科書順";
+                modeBadge.className = "text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded";
+            } else if (mode === 'retry') {
+                // Retry mode: use the wrongQuestions from previous session
+                // We copy it to currentQueue and CLEAR wrongQuestions to track NEW mistakes
+                currentQueue = [...wrongQuestions];
+                wrongQuestions = []; 
+                modeBadge.textContent = "復習モード";
+                modeBadge.className = "text-xs px-2 py-1 bg-orange-100 text-orange-600 rounded";
+            }
+
+            menuScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (currentIndex >= currentQueue.length) {
+                showResults();
+                return;
+            }
+
+            const currentItem = currentQueue[currentIndex];
+            questionText.textContent = currentItem.ja;
+            
+            // Generate options
+            const options = generateOptions(currentItem);
+            
+            // Update UI
+            counterDisplay.textContent = `Q. ${currentIndex + 1} / ${currentQueue.length}`;
+            const progressPercent = ((currentIndex) / currentQueue.length) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            feedbackMsg.textContent = "";
+
+            renderOptions(options, currentItem.en);
+            isAcceptingInput = true;
+        }
+
+        function generateOptions(correctItem) {
+            // Get 3 random distractors that are NOT the correct answer
+            const distractors = [];
+            const tempData = [...wordData];
+            
+            while (distractors.length < 3) {
+                const randomIdx = Math.floor(Math.random() * tempData.length);
+                const randomWord = tempData[randomIdx];
+                
+                // Avoid duplicates and avoid the correct answer
+                if (randomWord.en !== correctItem.en && !distractors.includes(randomWord)) {
+                    distractors.push(randomWord);
+                }
+            }
+
+            // Combine and shuffle
+            return shuffleArray([correctItem, ...distractors]);
+        }
+
+        function renderOptions(options, correctAnswer) {
+            optionsContainer.innerHTML = '';
+            
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "btn-option w-full bg-white hover:bg-indigo-50 border-2 border-indigo-100 text-indigo-900 font-bold py-4 px-6 rounded-lg shadow-sm text-lg text-left relative overflow-hidden";
+                btn.textContent = opt.en;
+                
+                btn.onclick = () => handleAnswer(btn, opt.en, correctAnswer);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(btnElement, selectedAnswer, correctAnswer) {
+            if (!isAcceptingInput) return;
+            isAcceptingInput = false;
+
+            const isCorrect = selectedAnswer === correctAnswer;
+            const currentItem = currentQueue[currentIndex];
+
+            // Highlight buttons
+            const buttons = optionsContainer.querySelectorAll('button');
+            buttons.forEach(b => {
+                if (b.textContent === correctAnswer) {
+                    b.classList.remove('bg-white', 'border-indigo-100', 'text-indigo-900');
+                    b.classList.add('bg-green-500', 'border-green-600', 'text-white');
+                } else if (b === btnElement && !isCorrect) {
+                    b.classList.remove('bg-white', 'border-indigo-100', 'text-indigo-900');
+                    b.classList.add('bg-red-500', 'border-red-600', 'text-white');
+                }
+                b.disabled = true; // Disable all buttons
+            });
+
+            if (isCorrect) {
+                score++;
+                scoreDisplay.textContent = score;
+                feedbackMsg.textContent = "正解!";
+                feedbackMsg.className = "text-green-600 font-bold h-5";
+            } else {
+                feedbackMsg.textContent = `残念... 正解は ${correctAnswer}`;
+                feedbackMsg.className = "text-red-500 font-bold h-5";
+                
+                // Track mistake
+                // Only push if it's not already in the list for this session
+                // Since this is a linear quiz, simple push is sufficient as each q is unique in queue
+                wrongQuestions.push(currentItem);
+            }
+
+            // Next question delay
+            setTimeout(() => {
+                currentIndex++;
+                loadQuestion();
+            }, 1200);
+        }
+
+        function showResults() {
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('total-questions').textContent = currentQueue.length;
+            progressBar.style.width = '100%';
+
+            // Check for wrong answers to enable retry
+            if (wrongQuestions.length > 0) {
+                resultTitle.textContent = "復習が必要です";
+                resultMsg.textContent = "以下の間違えた単語を確認して、再挑戦しましょう。";
+                
+                wrongCountSpan.textContent = wrongQuestions.length;
+                wrongCountContainer.classList.remove('hidden');
+                
+                retryBtn.classList.remove('hidden');
+                retryBtn.textContent = `間違えた${wrongQuestions.length}問を解き直す`;
+
+                // Render Mistake List
+                mistakeList.innerHTML = '';
+                wrongQuestions.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = "bg-white p-3 rounded shadow-sm border border-red-200 flex justify-between items-center";
+                    li.innerHTML = `
+                        <span class="text-sm font-bold text-gray-700">${item.ja}</span>
+                        <span class="text-sm font-mono text-red-600 font-bold">${item.en}</span>
+                    `;
+                    mistakeList.appendChild(li);
+                });
+                mistakeContainer.classList.remove('hidden');
+
+            } else {
+                resultTitle.textContent = "全問正解！";
+                resultMsg.textContent = "素晴らしい！完璧です。";
+                wrongCountContainer.classList.add('hidden');
+                retryBtn.classList.add('hidden');
+                mistakeContainer.classList.add('hidden');
+            }
+        }
+
+        function startRetry() {
+            startGame('retry');
+        }
+
+        // --- Modal & Reset Logic ---
+
+        function checkReset() {
+            // Only show modal if quiz is active or on result screen
+            if (!menuScreen.classList.contains('hidden')) {
+                // If on menu screen, no need to confirm
+                return;
+            }
+            confirmModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            confirmModal.classList.add('hidden');
+        }
+
+        function confirmReset() {
+            closeModal();
+            resetGame();
+        }
+
+        function resetGame() {
+            menuScreen.classList.remove('hidden');
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            progressBar.style.width = '0%';
+            feedbackMsg.textContent = "";
+            wrongQuestions = []; // Reset mistake tracking on full reset
+        }
+
+        // --- Utility ---
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+    </script>
+</body>
+</html>
